@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#14532d">
 <title>Sarah Stock - Gestion du dépôt</title>
+
+<link rel="manifest" href="manifest.json">
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172033}
@@ -29,11 +32,13 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 .small{font-size:13px;color:#64748b}
 .danger{color:#b91c1c;font-weight:bold}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
-@media(max-width:420px){.grid{grid-template-columns:1fr 1fr}.stat strong{font-size:17px}}
+@media(max-width:420px){
+  .grid{grid-template-columns:1fr 1fr}
+  .stat strong{font-size:17px}
+}
 </style>
- <link rel="manifest" 
-  href="manifest.json">
 </head>
+
 <body>
 <header>
 <h1>🥤 Sarah Stock</h1>
@@ -59,6 +64,7 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 </div>
 <p class="small">Les données sont conservées sur ce téléphone et dans ce navigateur. Exportez régulièrement une sauvegarde.</p>
 </div>
+
 <div class="card">
 <h2>⚠️ Stock faible</h2>
 <div id="alerts">Aucune boisson enregistrée.</div>
@@ -68,45 +74,68 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <section id="products" hidden>
 <div class="card">
 <h2>➕ Ajouter une boisson</h2>
+
 <form id="productForm">
 <label>Nom de la boisson</label>
 <input id="pname" required placeholder="Ex. : Top Pamplemousse">
+
 <label>Marque ou format (facultatif)</label>
 <input id="brand" placeholder="Ex. : 1 litre">
+
 <label>Nombre de bouteilles par casier</label>
 <input id="units" type="number" min="1" value="12" required>
+
 <label>Stock actuel (en bouteilles)</label>
 <input id="qty" type="number" min="0" value="0" required>
+
 <label>Prix d'achat par bouteille (FCFA)</label>
 <input id="cost" type="number" min="0" value="0" required>
+
 <label>Prix de vente par bouteille (FCFA)</label>
 <input id="price" type="number" min="0" value="0" required>
+
 <label>Seuil d'alerte (bouteilles)</label>
 <input id="threshold" type="number" min="0" value="12" required>
+
 <button type="submit">Enregistrer la boisson</button>
 </form>
 </div>
+
 <div class="card">
 <h2>📦 Liste des boissons</h2>
-<div class="table-wrap"><table>
-<thead><tr><th>Boisson</th><th>Stock</th><th>Prix bouteille</th><th>Action</th></tr></thead>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Boisson</th>
+<th>Stock</th>
+<th>Prix bouteille</th>
+<th>Action</th>
+</tr>
+</thead>
 <tbody id="productRows"></tbody>
-</table></div>
+</table>
+</div>
 </div>
 </section>
 
 <section id="sale" hidden>
 <div class="card">
 <h2>🛒 Enregistrer une vente</h2>
+
 <form id="saleForm">
 <label>Boisson</label>
 <select id="saleProduct" required></select>
+
 <label>Nombre de casiers</label>
 <input id="crates" type="number" min="0" value="0" required>
+
 <label>Nombre de bouteilles supplémentaires</label>
 <input id="bottles" type="number" min="0" value="0" required>
+
 <label>Prix de vente par casier (FCFA)</label>
 <input id="cratePrice" type="number" min="0" value="0" required>
+
 <div id="saleInfo" class="small">Choisissez une boisson.</div>
 <button type="submit">Confirmer la vente</button>
 </form>
@@ -116,15 +145,27 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <section id="history" hidden>
 <div class="card">
 <h2>🧾 Historique des ventes</h2>
-<div class="table-wrap"><table>
-<thead><tr><th>Date</th><th>Boisson</th><th>Quantité</th><th>Total</th></tr></thead>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Boisson</th>
+<th>Quantité</th>
+<th>Total</th>
+</tr>
+</thead>
 <tbody id="salesRows"></tbody>
-</table></div>
+</table>
+</div>
+
 <div class="actions">
 <button onclick="exportData()">Exporter la sauvegarde</button>
 <button class="secondary" onclick="document.getElementById('importFile').click()">Importer une sauvegarde</button>
 <input id="importFile" type="file" accept=".json,application/json" hidden>
 </div>
+
 <p class="small">Conservez le fichier exporté en lieu sûr. L'importation remplace les données présentes sur ce téléphone.</p>
 </div>
 </section>
@@ -133,101 +174,267 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <script>
 const KEY='sarahStockDataV1';
 let data={products:[],sales:[]};
+
 try{
- const saved=localStorage.getItem(KEY);
- if(saved)data=JSON.parse(saved);
- if(!Array.isArray(data.products)||!Array.isArray(data.sales))throw Error();
-}catch(e){data={products:[],sales:[]};}
-function save(){localStorage.setItem(KEY,JSON.stringify(data));render();}
-function money(n){return Math.round(n).toLocaleString('fr-FR')+' FCFA';}
+  const saved=localStorage.getItem(KEY);
+  if(saved)data=JSON.parse(saved);
+  if(!Array.isArray(data.products)||!Array.isArray(data.sales))throw Error();
+}catch(e){
+  data={products:[],sales:[]};
+}
+
+function save(){
+  localStorage.setItem(KEY,JSON.stringify(data));
+  render();
+}
+
+function money(n){
+  return Math.round(n).toLocaleString('fr-FR')+' FCFA';
+}
+
 function show(id){
- document.querySelectorAll('main section').forEach(s=>s.hidden=s.id!==id);
- render();
+  document.querySelectorAll('main section').forEach(s=>{
+    s.hidden=s.id!==id;
+  });
+  render();
 }
+
 function render(){
- document.getElementById('count').textContent=data.products.length;
- document.getElementById('stock').textContent=data.products.reduce((s,p)=>s+Number(p.qty),0);
- const day=new Date().toLocaleDateString('sv-SE');
- const todays=data.sales.filter(s=>s.date.slice(0,10)===day);
- document.getElementById('today').textContent=money(todays.reduce((s,x)=>s+x.total,0));
- document.getElementById('profit').textContent=money(todays.reduce((s,x)=>s+x.profit,0));
- const low=data.products.filter(p=>p.qty<=p.threshold);
- document.getElementById('alerts').innerHTML=low.length?low.map(p=>'<p class="danger">'+esc(p.name)+': '+p.qty+' bouteille(s)</p>').join(''):'Aucune alerte de stock.';
- document.getElementById('productRows').innerHTML=data.products.map(p=>'<tr><td>'+esc(p.name)+'<br><span class="small">'+esc(p.brand||'')+'</span></td><td>'+p.qty+'</td><td>'+money(p.price)+'</td><td><button class="secondary" onclick="addStock('+p.id+')">+ Stock</button> <button onclick="removeProduct('+p.id+')">Supprimer</button></td></tr>').join('');
- const sel=document.getElementById('saleProduct');
- const old=sel.value;
- sel.innerHTML=data.products.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
- if(data.products.some(p=>String(p.id)===old))sel.value=old;
- updateSaleInfo();
- document.getElementById('salesRows').innerHTML=[...data.sales].reverse().map(s=>'<tr><td>'+new Date(s.date).toLocaleString('fr-FR')+'</td><td>'+esc(s.name)+'</td><td>'+s.qty+'</td><td>'+money(s.total)+'</td></tr>').join('');
+  document.getElementById('count').textContent=data.products.length;
+
+  document.getElementById('stock').textContent=
+    data.products.reduce((s,p)=>s+Number(p.qty),0);
+
+  const day=new Date().toLocaleDateString('sv-SE');
+  const todays=data.sales.filter(s=>s.date.slice(0,10)===day);
+
+  document.getElementById('today').textContent=
+    money(todays.reduce((s,x)=>s+Number(x.total||0),0));
+
+  document.getElementById('profit').textContent=
+    money(todays.reduce((s,x)=>s+Number(x.profit||0),0));
+
+  const low=data.products.filter(p=>Number(p.qty)<=Number(p.threshold));
+
+  document.getElementById('alerts').innerHTML=low.length
+    ?low.map(p=>'<p class="danger">'+esc(p.name)+': '+p.qty+' bouteille(s)</p>').join('')
+    :'Aucune alerte de stock.';
+
+  document.getElementById('productRows').innerHTML=data.products.map(p=>
+    '<tr><td>'+esc(p.name)+'<br><span class="small">'+esc(p.brand||'')+
+    '</span></td><td>'+p.qty+'</td><td>'+money(p.price)+
+    '</td><td><button class="secondary" onclick="addStock('+p.id+
+    ')">+ Stock</button> <button onclick="removeProduct('+p.id+
+    ')">Supprimer</button></td></tr>'
+  ).join('');
+
+  const sel=document.getElementById('saleProduct');
+  const old=sel.value;
+
+  sel.innerHTML=data.products.map(p=>
+    '<option value="'+p.id+'">'+esc(p.name)+'</option>'
+  ).join('');
+
+  if(data.products.some(p=>String(p.id)===old))sel.value=old;
+
+  updateSaleInfo();
+
+  document.getElementById('salesRows').innerHTML=
+    [...data.sales].reverse().map(s=>
+      '<tr><td>'+new Date(s.date).toLocaleString('fr-FR')+
+      '</td><td>'+esc(s.name)+'</td><td>'+s.qty+
+      '</td><td>'+money(s.total)+'</td></tr>'
+    ).join('');
 }
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g,c=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[c]));
+}
+
 document.getElementById('productForm').addEventListener('submit',e=>{
- e.preventDefault();
- data.products.push({id:Date.now(),name:document.getElementById('pname').value.trim(),brand:document.getElementById('brand').value.trim(),units:+document.getElementById('units').value,qty:+document.getElementById('qty').value,cost:+document.getElementById('cost').value,price:+document.getElementById('price').value,threshold:+document.getElementById('threshold').value});
- save();e.target.reset();document.getElementById('units').value=12;document.getElementById('threshold').value=12;alert('Boisson enregistrée !');show('products');
+  e.preventDefault();
+
+  data.products.push({
+    id:Date.now(),
+    name:document.getElementById('pname').value.trim(),
+    brand:document.getElementById('brand').value.trim(),
+    units:+document.getElementById('units').value,
+    qty:+document.getElementById('qty').value,
+    cost:+document.getElementById('cost').value,
+    price:+document.getElementById('price').value,
+    threshold:+document.getElementById('threshold').value
+  });
+
+  save();
+  e.target.reset();
+  document.getElementById('units').value=12;
+  document.getElementById('threshold').value=12;
+  alert('Boisson enregistrée !');
+  show('products');
 });
+
 function addStock(id){
- const p=data.products.find(x=>x.id===id);if(!p)return;
- const n=prompt('Combien de bouteilles ajouter au stock de '+p.name+' ?','12');
- if(n===null)return;
- if(!Number.isInteger(Number(n))||Number(n)<=0){alert('Saisissez un nombre entier positif.');return;}
- p.qty+=Number(n);save();
+  const p=data.products.find(x=>x.id===id);
+  if(!p)return;
+
+  const n=prompt('Combien de bouteilles ajouter au stock de '+p.name+' ?','12');
+  if(n===null)return;
+
+  if(!Number.isInteger(Number(n))||Number(n)<=0){
+    alert('Saisissez un nombre entier positif.');
+    return;
+  }
+
+  p.qty=Number(p.qty)+Number(n);
+  save();
 }
+
 function removeProduct(id){
- if(!confirm('Supprimer cette boisson ?'))return;
- data.products=data.products.filter(p=>p.id!==id);save();
+  if(!confirm('Supprimer cette boisson ?'))return;
+
+  data.products=data.products.filter(p=>p.id!==id);
+  save();
 }
+
 document.getElementById('saleProduct').addEventListener('change',updateSaleInfo);
 document.getElementById('crates').addEventListener('input',updateSaleInfo);
 document.getElementById('bottles').addEventListener('input',updateSaleInfo);
 document.getElementById('cratePrice').addEventListener('input',updateSaleInfo);
+
 function updateSaleInfo(){
- const p=data.products.find(x=>x.id===Number(document.getElementById('saleProduct').value));
- const c=Number(document.getElementById('crates').value)||0;
- const b=Number(document.getElementById('bottles').value)||0;
- const cp=Number(document.getElementById('cratePrice').value)||0;
- if(!p){document.getElementById('saleInfo').textContent='Ajoutez d’abord une boisson dans la rubrique Boissons et stock.';return;}
- document.getElementById('saleInfo').textContent='Stock : '+p.qty+' bouteilles. Quantité : '+(c*p.units+b)+' bouteilles. Total estimé : '+money(c*cp+b*p.price);
+  const p=data.products.find(x=>
+    x.id===Number(document.getElementById('saleProduct').value)
+  );
+
+  const c=Number(document.getElementById('crates').value)||0;
+  const b=Number(document.getElementById('bottles').value)||0;
+  const cp=Number(document.getElementById('cratePrice').value)||0;
+
+  if(!p){
+    document.getElementById('saleInfo').textContent=
+      'Ajoutez d’abord une boisson dans la rubrique Boissons et stock.';
+    return;
+  }
+
+  document.getElementById('saleInfo').textContent=
+    'Stock : '+p.qty+' bouteilles. Quantité : '+
+    (c*p.units+b)+' bouteilles. Total estimé : '+
+    money(c*cp+b*p.price);
 }
+
 document.getElementById('saleForm').addEventListener('submit',e=>{
- e.preventDefault();
- const p=data.products.find(x=>x.id===Number(document.getElementById('saleProduct').value));
- if(!p){alert('Ajoutez d’abord une boisson.');return;}
- const c=Number(document.getElementById('crates').value),b=Number(document.getElementById('bottles').value),cp=Number(document.getElementById('cratePrice').value);
- const qty=c*p.units+b;
- if(qty<=0){alert('Saisissez une quantité à vendre.');return;}
- if(qty>p.qty){alert('Stock insuffisant : il reste '+p.qty+' bouteilles.');return;}
- const total=c*cp+b*p.price;
- const profit=total-qty*p.cost;
- if(!confirm('Confirmer '+qty+' bouteille(s) de '+p.name+' pour '+money(total)+' ?'))return;
- p.qty-=qty;
- data.sales.push({date:new Date().toISOString(),productId:p.id,name:p.name,qty,total,profit});
- save();e.target.reset();document.getElementById('crates').value=0;document.getElementById('bottles').value=0;alert('Vente enregistrée !');show('dashboard');
+  e.preventDefault();
+
+  const p=data.products.find(x=>
+    x.id===Number(document.getElementById('saleProduct').value)
+  );
+
+  if(!p){
+    alert('Ajoutez d’abord une boisson.');
+    return;
+  }
+
+  const c=Number(document.getElementById('crates').value);
+  const b=Number(document.getElementById('bottles').value);
+  const cp=Number(document.getElementById('cratePrice').value);
+
+  const qty=c*p.units+b;
+
+  if(qty<=0){
+    alert('Saisissez une quantité à vendre.');
+    return;
+  }
+
+  if(qty>p.qty){
+    alert('Stock insuffisant : il reste '+p.qty+' bouteilles.');
+    return;
+  }
+
+  const total=c*cp+b*p.price;
+  const profit=total-qty*p.cost;
+
+  if(!confirm('Confirmer '+qty+' bouteille(s) de '+p.name+
+    ' pour '+money(total)+' ?'))return;
+
+  p.qty-=qty;
+
+  data.sales.push({
+    date:new Date().toISOString(),
+    productId:p.id,
+    name:p.name,
+    qty:qty,
+    total:total,
+    profit:profit
+  });
+
+  save();
+  e.target.reset();
+
+  document.getElementById('crates').value=0;
+  document.getElementById('bottles').value=0;
+
+  alert('Vente enregistrée !');
+  show('dashboard');
 });
+
 function exportData(){
- const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
- const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='sarah-stock-sauvegarde.json';a.click();URL.revokeObjectURL(url);
+  const blob=new Blob(
+    [JSON.stringify(data,null,2)],
+    {type:'application/json'}
+  );
+
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+
+  a.href=url;
+  a.download='sarah-stock-sauvegarde.json';
+  a.click();
+
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
 document.getElementById('importFile').addEventListener('change',async e=>{
- const f=e.target.files[0];if(!f)return;
- try{
-  const d=JSON.parse(await f.text());
-  if(!Array.isArray(d.products)||!Array.isArray(d.sales))throw Error();
-  if(!confirm('Remplacer les données actuelles par la sauvegarde ?'))return;
-  data=d;save();alert('Sauvegarde importée.');
- }catch(err){alert('Fichier de sauvegarde invalide.');}
- e.target.value='';
+  const f=e.target.files[0];
+  if(!f)return;
+
+  try{
+    const d=JSON.parse(await f.text());
+
+    if(!Array.isArray(d.products)||!Array.isArray(d.sales)){
+      throw Error();
+    }
+
+    if(!confirm('Remplacer les données actuelles par la sauvegarde ?')){
+      return;
+    }
+
+    data=d;
+    save();
+    alert('Sauvegarde importée.');
+  }catch(err){
+    alert('Fichier de sauvegarde invalide.');
+  }finally{
+    e.target.value='';
+  }
 });
+
 render();
 </script>
-</script>
- if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js")
-      .catch(error => console.error("Service worker:", error));
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./service-worker.js')
+      .catch(error=>console.error('Erreur service worker :',error));
   });
 }
 </script>
+
 </body>
 </html>
