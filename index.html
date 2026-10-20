@@ -35,6 +35,27 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 @media(max-width:420px){
   .grid{grid-template-columns:1fr 1fr}
   .stat strong{font-size:17px}
+}.main-menu{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  padding:14px;
+  background:white;
+  border-radius:12px;
+  margin:12px;
+}
+
+.main-menu button{
+  min-height:90px;
+  font-size:16px;
+  border-radius:14px;
+  padding:12px;
+}
+
+@media(max-width:360px){
+  .main-menu{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 </head>
@@ -45,12 +66,12 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <div>Gestion du dépôt de boissons</div>
 </header>
 
-<nav>
-<button onclick="show('dashboard')">Accueil</button>
-<button onclick="show('products')">Boissons et stock</button>
-<button onclick="show('sale')">Nouvelle vente</button>
-<button onclick="show('history')">Historique</button>
-</nav>
+<div id="mainMenu" class="main-menu">
+  <button onclick="show('dashboard')">🏠 Accueil</button>
+  <button onclick="show('products')">🥤 Boissons et stock</button>
+  <button onclick="show('sale')">💰 Nouvelle vente</button>
+  <button onclick="show('history')">🧾 Historique des ventes</button>
+</div>
 
 <main>
 <section id="dashboard">
