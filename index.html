@@ -25,7 +25,7 @@ label{display:block;font-size:14px;margin:10px 0 5px}
 input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;background:white}
 form button{margin-top:14px;width:100%}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
+th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0;vertical-align:top}
 .table-wrap{overflow-x:auto}
 .small{font-size:13px;color:#64748b}
 .danger{color:#b91c1c;font-weight:bold}
@@ -36,6 +36,7 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 #status{padding:10px 14px;background:#e2e8f0;font-size:13px;overflow-wrap:anywhere}
 #loginSection{max-width:500px;margin:20px auto;padding:14px}
 .notice{background:#fff7ed;padding:12px;border-radius:8px;font-size:13px}
+.sale-summary{background:#ecfdf5;padding:12px;border-radius:8px;line-height:1.8;margin-top:12px}
 [hidden]{display:none!important}
 @media(max-width:360px){.main-menu{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}
 </style>
@@ -122,10 +123,11 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <label>Bouteilles par casier</label><input id="units" type="number" min="1" step="1" value="12" required>
 <label>Stock actuel (bouteilles)</label><input id="qty" type="number" min="0" step="1" value="0" required>
 <label>Prix d'achat par bouteille (FCFA)</label><input id="cost" type="number" min="0" step="1" value="0" required>
-<label>Prix de vente par bouteille (FCFA)</label><input id="price" type="number" min="0" step="1" value="0" required>
+<label>Prix de vente habituel par bouteille (FCFA)</label><input id="price" type="number" min="0" step="1" value="0" required>
 <label>Seuil d'alerte</label><input id="threshold" type="number" min="0" step="1" value="12" required>
 <button type="submit">Enregistrer la boisson</button>
 </form>
+<p class="small">Le prix habituel par bouteille sert de valeur proposée lors d'une nouvelle vente. Tu peux le modifier au moment de vendre.</p>
 </div>
 <div class="card">
 <h2>📦 Liste des boissons</h2>
@@ -140,12 +142,25 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <div class="card">
 <h2>🛒 Enregistrer une vente</h2>
 <form id="saleForm">
-<label>Boisson</label><select id="saleProduct" required></select>
-<label>Nombre de casiers</label><input id="crates" type="number" min="0" step="1" value="0" required>
-<label>Bouteilles supplémentaires</label><input id="bottles" type="number" min="0" step="1" value="0" required>
-<label>Prix de vente par casier (FCFA)</label><input id="cratePrice" type="number" min="0" step="1" value="0" required>
-<div id="saleInfo" class="small">Choisis une boisson.</div>
-<button type="submit">Confirmer la vente</button>
+<label>Choisis une boisson</label>
+<select id="saleProduct" required>
+<option value="">Choisis une boisson</option>
+</select>
+
+<label>Nombre de casiers</label>
+<input id="crates" type="number" min="0" step="1" value="0" required>
+
+<label>Bouteilles supplémentaires</label>
+<input id="bottles" type="number" min="0" step="1" value="0" required>
+
+<label>Prix de vente par casier (FCFA)</label>
+<input id="cratePrice" type="number" min="0" step="1" value="0" required>
+
+<label>Prix de vente par bouteille (FCFA)</label>
+<input id="bottlePrice" type="number" min="0" step="1" value="0" required>
+
+<div id="saleInfo" class="sale-summary">Choisis une boisson.</div>
+<button id="confirmSaleBtn" type="submit">Confirmer la vente</button>
 </form>
 </div>
 </section>
@@ -154,7 +169,16 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <div class="card">
 <h2>🧾 Historique des ventes</h2>
 <div class="table-wrap"><table>
-<thead><tr><th>Date</th><th>Boisson</th><th>Quantité</th><th>Total</th></tr></thead>
+<thead>
+<tr>
+<th>Date</th>
+<th>Boisson</th>
+<th>Détail</th>
+<th>Quantité</th>
+<th>Total</th>
+<th>Bénéfice</th>
+</tr>
+</thead>
 <tbody id="salesRows"></tbody>
 </table></div>
 <div class="actions">
@@ -162,7 +186,7 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <button type="button" class="secondary" onclick="document.getElementById('importFile').click()">Importer une sauvegarde</button>
 <input id="importFile" type="file" accept=".json,application/json" hidden>
 </div>
-<p class="small">L'importation remplace les données partagées.</p>
+<p class="small">L'importation remplace les données partagées. Exporte régulièrement une sauvegarde de sécurité.</p>
 </div>
 </section>
 
@@ -184,7 +208,7 @@ import {
  sendPasswordResetEmail,signOut
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {
- getFirestore,doc,getDoc,setDoc,addDoc,collection,getDocs,
+ getFirestore,doc,getDoc,setDoc,collection,
  onSnapshot,serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
@@ -212,6 +236,7 @@ let unsubscribeDepot=null;
 let unsubscribeRequests=null;
 let ready=false;
 let saving=false;
+let lastSaleProductId="";
 
 const $=id=>document.getElementById(id);
 const isAdmin=()=>!!currentUser&&(currentUser.email||"").toLowerCase()===ADMIN_EMAIL.toLowerCase();
@@ -219,11 +244,13 @@ const isAdmin=()=>!!currentUser&&(currentUser.email||"").toLowerCase()===ADMIN_E
 function status(s){$("status").textContent=s}
 function money(n){return Math.round(Number(n)||0).toLocaleString("fr-FR")+" FCFA"}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
 function setSections(login,pending,main){
  $("loginSection").hidden=!login;
  $("pendingSection").hidden=!pending;
  $("appArea").hidden=!main;
 }
+
 function show(id){
  document.querySelectorAll("#appArea main section").forEach(s=>s.hidden=s.id!==id);
  render();
@@ -234,163 +261,367 @@ window.show=show;
 function render(){
  $("count").textContent=data.products.length;
  $("stock").textContent=data.products.reduce((sum,p)=>sum+Number(p.qty||0),0);
+
  const day=new Date().toLocaleDateString("sv-SE");
  const todays=data.sales.filter(s=>String(s.date||"").slice(0,10)===day);
+
  $("today").textContent=money(todays.reduce((sum,s)=>sum+Number(s.total||0),0));
  $("profit").textContent=money(todays.reduce((sum,s)=>sum+Number(s.profit||0),0));
+
  const low=data.products.filter(p=>Number(p.qty)<=Number(p.threshold));
- $("alerts").innerHTML=low.length?low.map(p=>'<p class="danger">'+esc(p.name)+': '+Number(p.qty)+' bouteille(s)</p>').join(""):"Aucune alerte de stock.";
- $("productRows").innerHTML=data.products.map(p=>'<tr><td>'+esc(p.name)+'<br><span class="small">'+esc(p.brand||"")+'</span></td><td>'+Number(p.qty||0)+'</td><td>'+money(p.price)+'</td><td><div class="actions"><button type="button" class="secondary" data-add="'+esc(p.id)+'">+ Stock</button><button type="button" class="danger-button" data-remove="'+esc(p.id)+'">Supprimer</button></div></td></tr>').join("");
- const sel=$("saleProduct"),old=sel.value;
- sel.innerHTML=data.products.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join("");
- if(data.products.some(p=>String(p.id)===old))sel.value=old;
- $("salesRows").innerHTML=[...data.sales].reverse().map(s=>'<tr><td>'+esc(s.date?new Date(s.date).toLocaleString("fr-FR"):"")+'</td><td>'+esc(s.name)+'</td><td>'+Number(s.qty||0)+'</td><td>'+money(s.total)+'</td></tr>').join("");
+ $("alerts").innerHTML=low.length
+  ?low.map(p=>'<p class="danger">'+esc(p.name)+': '+Number(p.qty)+' bouteille(s)</p>').join("")
+  :"Aucune alerte de stock.";
+
+ $("productRows").innerHTML=data.products.map(p=>
+  '<tr><td>'+esc(p.name)+'<br><span class="small">'+esc(p.brand||"")+'</span></td>'+
+  '<td>'+Number(p.qty||0)+'</td>'+
+  '<td>'+money(p.price)+'</td>'+
+  '<td><div class="actions">'+
+  '<button type="button" class="secondary" data-add="'+esc(p.id)+'">+ Stock</button>'+
+  '<button type="button" class="danger-button" data-remove="'+esc(p.id)+'">Supprimer</button>'+
+  '</div></td></tr>'
+ ).join("");
+
+ const sel=$("saleProduct");
+ const previous=sel.value;
+
+ sel.innerHTML='<option value="">Choisis une boisson</option>'+
+  data.products.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join("");
+
+ if(data.products.some(p=>String(p.id)===previous)){
+  sel.value=previous;
+ }else if(data.products.length){
+  sel.value=String(data.products[0].id);
+ }
+
+ const selected=data.products.find(p=>String(p.id)===sel.value);
+
+ if(selected&&lastSaleProductId!==String(selected.id)){
+  $("bottlePrice").value=Number(selected.price)||0;
+  lastSaleProductId=String(selected.id);
+ }
+
+ $("salesRows").innerHTML=[...data.sales].reverse().map(s=>{
+  const detail=[];
+  if(Number(s.crates||0)>0)detail.push(Number(s.crates)+" casier(s)");
+  if(Number(s.bottles||0)>0)detail.push(Number(s.bottles)+" bouteille(s)");
+  if(!detail.length)detail.push("Ancienne vente");
+
+  return '<tr>'+
+   '<td>'+esc(s.date?new Date(s.date).toLocaleString("fr-FR"):"")+'</td>'+
+   '<td>'+esc(s.name||"Boisson")+'</td>'+
+   '<td>'+esc(detail.join(" + "))+
+   '<br><span class="small">Casier : '+money(s.cratePrice||0)+
+   '<br>Bouteille : '+money(s.bottlePrice??s.unitPrice??0)+'</span></td>'+
+   '<td>'+Number(s.qty||0)+'</td>'+
+   '<td>'+money(s.total)+'</td>'+
+   '<td>'+money(s.profit)+'</td>'+
+   '</tr>';
+ }).join("");
+
  updateSaleInfo();
 }
 
 async function save(){
- if(!currentUser||!ready||saving){status("Attends la fin du chargement avant d'enregistrer.");return false}
+ if(!currentUser||!ready||saving){
+  status("Attends la fin du chargement avant d'enregistrer.");
+  return false;
+ }
+
  saving=true;
+
  try{
-  await setDoc(depotRef,{products:data.products,sales:data.sales,updatedAt:new Date().toISOString(),updatedBy:currentUser.email||currentUser.uid});
+  await setDoc(depotRef,{
+   products:data.products,
+   sales:data.sales,
+   updatedAt:new Date().toISOString(),
+   updatedBy:currentUser.email||currentUser.uid
+  });
+
   localStorage.setItem(KEY,JSON.stringify(data));
   status("☁️ Données enregistrées et synchronisées.");
   return true;
- }catch(e){console.error(e);status("Erreur d'enregistrement : "+e.message);alert("Impossible d'enregistrer : "+e.message);return false}
- finally{saving=false}
+ }catch(e){
+  console.error(e);
+  status("Erreur d'enregistrement : "+e.message);
+  alert("Impossible d'enregistrer : "+e.message);
+  return false;
+ }finally{
+  saving=false;
+ }
 }
 
 async function loadCloud(){
- ready=false;status("Chargement des données du dépôt…");
+ ready=false;
+ status("Chargement des données du dépôt…");
+
  try{
   const snap=await getDoc(depotRef);
+
   if(snap.exists()){
    const cloud=snap.data();
-   data={products:Array.isArray(cloud.products)?cloud.products:[],sales:Array.isArray(cloud.sales)?cloud.sales:[]};
+   data={
+    products:Array.isArray(cloud.products)?cloud.products:[],
+    sales:Array.isArray(cloud.sales)?cloud.sales:[]
+   };
   }else{
    data={products:[],sales:[]};
-   await setDoc(depotRef,{products:[],sales:[],updatedAt:new Date().toISOString(),updatedBy:currentUser.email||currentUser.uid});
+   await setDoc(depotRef,{
+    products:[],
+    sales:[],
+    updatedAt:new Date().toISOString(),
+    updatedBy:currentUser.email||currentUser.uid
+   });
   }
-  ready=true;render();status("☁️ Connecté au dépôt partagé.");
+
+  ready=true;
+  render();
+  status("☁️ Connecté au dépôt partagé.");
+
   if(unsubscribeDepot)unsubscribeDepot();
+
   unsubscribeDepot=onSnapshot(depotRef,s=>{
    if(!s.exists()||saving)return;
+
    const cloud=s.data();
+
    if(Array.isArray(cloud.products)&&Array.isArray(cloud.sales)){
     data={products:cloud.products,sales:cloud.sales};
-    localStorage.setItem(KEY,JSON.stringify(data));render();status("☁️ Synchronisation active.");
+    localStorage.setItem(KEY,JSON.stringify(data));
+    render();
+    status("☁️ Synchronisation active.");
    }
-  },e=>{console.error(e);status("Erreur de synchronisation : "+e.message)});
- }catch(e){ready=false;console.error(e);status("Erreur Firestore : "+e.message);alert("Accès Firestore refusé : "+e.message)}
+  },e=>{
+   console.error(e);
+   status("Erreur de synchronisation : "+e.message);
+  });
+ }catch(e){
+  ready=false;
+  console.error(e);
+  status("Erreur Firestore : "+e.message);
+  alert("Accès Firestore refusé : "+e.message);
+ }
 }
 
 async function submitRequest(user){
  const ref=doc(db,"userRequests",user.uid);
  const existing=await getDoc(ref);
+
  if(!existing.exists()){
-  await setDoc(ref,{uid:user.uid,email:user.email||"",status:"pending",createdAt:serverTimestamp()});
+  await setDoc(ref,{
+   uid:user.uid,
+   email:user.email||"",
+   status:"pending",
+   createdAt:serverTimestamp()
+  });
  }
 }
 
 async function loadRequests(){
  if(!isAdmin())return;
+
  $("userRequestsList").textContent="Chargement des demandes…";
+
  try{
   if(unsubscribeRequests)unsubscribeRequests();
+
   unsubscribeRequests=onSnapshot(collection(db,"userRequests"),snap=>{
-   if(snap.empty){$("userRequestsList").textContent="Aucune demande pour le moment.";return}
+   if(snap.empty){
+    $("userRequestsList").textContent="Aucune demande pour le moment.";
+    return;
+   }
+
    const rows=[];
+
    snap.forEach(d=>{
     const r=d.data();
-    rows.push('<div class="card"><strong>'+esc(r.email||d.id)+'</strong><p class="small">État : '+esc(r.status||"pending")+'</p><div class="actions">'+
-    (r.status==="pending"?'<button type="button" data-approve="'+esc(d.id)+'">Approuver</button><button type="button" class="danger-button" data-deny="'+esc(d.id)+'">Refuser</button>':"")+
-    '</div></div>');
+
+    rows.push(
+     '<div class="card"><strong>'+esc(r.email||d.id)+'</strong>'+
+     '<p class="small">État : '+esc(r.status||"pending")+'</p>'+
+     '<div class="actions">'+
+     (r.status==="pending"
+      ?'<button type="button" data-approve="'+esc(d.id)+'">Approuver</button>'+
+       '<button type="button" class="danger-button" data-deny="'+esc(d.id)+'">Refuser</button>'
+      :"")+
+     '</div></div>'
+    );
    });
+
    $("userRequestsList").innerHTML=rows.join("");
-  },e=>{$("userRequestsList").textContent="Erreur : "+e.message});
- }catch(e){$("userRequestsList").textContent="Erreur : "+e.message}
+  },e=>{
+   $("userRequestsList").textContent="Erreur : "+e.message;
+  });
+ }catch(e){
+  $("userRequestsList").textContent="Erreur : "+e.message;
+ }
 }
 
 async function approveUser(uid){
  if(!isAdmin())return alert("Action réservée à l'administrateur.");
+
  const requestRef=doc(db,"userRequests",uid);
  const snap=await getDoc(requestRef);
+
  if(!snap.exists())return alert("Demande introuvable.");
+
  const r=snap.data();
- await setDoc(doc(db,"authorizedUsers",uid),{uid,email:r.email||"",approved:true,role:"user",approvedAt:serverTimestamp()});
- await setDoc(requestRef,{...r,status:"approved",reviewedAt:serverTimestamp()});
+
+ await setDoc(doc(db,"authorizedUsers",uid),{
+  uid,
+  email:r.email||"",
+  approved:true,
+  role:"user",
+  approvedAt:serverTimestamp()
+ });
+
+ await setDoc(requestRef,{
+  ...r,
+  status:"approved",
+  reviewedAt:serverTimestamp()
+ });
+
  alert("Utilisateur approuvé.");
 }
 
 async function denyUser(uid){
  if(!isAdmin())return;
+
  const ref=doc(db,"userRequests",uid);
  const snap=await getDoc(ref);
+
  if(!snap.exists())return;
- await setDoc(ref,{...snap.data(),status:"refused",reviewedAt:serverTimestamp()});
- await setDoc(doc(db,"authorizedUsers",uid),{uid,approved:false,role:"user",updatedAt:serverTimestamp()});
+
+ await setDoc(ref,{
+  ...snap.data(),
+  status:"refused",
+  reviewedAt:serverTimestamp()
+ });
+
+ await setDoc(doc(db,"authorizedUsers",uid),{
+  uid,
+  approved:false,
+  role:"user",
+  updatedAt:serverTimestamp()
+ });
+
  alert("Demande refusée.");
 }
 
 $("userRequestsList").addEventListener("click",async e=>{
  try{
-  const a=e.target.dataset.approve,d=e.target.dataset.deny;
+  const a=e.target.dataset.approve;
+  const d=e.target.dataset.deny;
+
   if(a&&confirm("Approuver cet utilisateur ?"))await approveUser(a);
   if(d&&confirm("Refuser cette demande ?"))await denyUser(d);
- }catch(err){alert("Impossible de traiter la demande : "+err.message)}
+ }catch(err){
+  alert("Impossible de traiter la demande : "+err.message);
+ }
 });
 
 $("loginForm").addEventListener("submit",async e=>{
  e.preventDefault();
- try{status("Connexion en cours…");await signInWithEmailAndPassword(auth,$("email").value.trim(),$("password").value)}
- catch(err){status("Connexion impossible : "+err.message);alert("Vérifie l'adresse e-mail et le mot de passe.")}
+
+ try{
+  status("Connexion en cours…");
+  await signInWithEmailAndPassword(
+   auth,
+   $("email").value.trim(),
+   $("password").value
+  );
+ }catch(err){
+  status("Connexion impossible : "+err.message);
+  alert("Vérifie l'adresse e-mail et le mot de passe.");
+ }
 });
 
 $("registerBtn").addEventListener("click",async()=>{
- const email=$("email").value.trim(),password=$("password").value;
- if(!email||password.length<6)return alert("Saisis un e-mail et un mot de passe d'au moins 6 caractères.");
+ const email=$("email").value.trim();
+ const password=$("password").value;
+
+ if(!email||password.length<6){
+  return alert("Saisis un e-mail et un mot de passe d'au moins 6 caractères.");
+ }
+
  try{
   status("Création du compte…");
   const result=await createUserWithEmailAndPassword(auth,email,password);
   await submitRequest(result.user);
   status("Compte créé. Demande envoyée à l'administrateur.");
- }catch(e){alert("Inscription impossible : "+e.message)}
+ }catch(e){
+  alert("Inscription impossible : "+e.message);
+ }
 });
 
 $("googleBtn").addEventListener("click",async()=>{
- try{await signInWithPopup(auth,provider)}catch(e){alert("Connexion Google impossible : "+e.message)}
+ try{
+  await signInWithPopup(auth,provider);
+ }catch(e){
+  alert("Connexion Google impossible : "+e.message);
+ }
 });
+
 $("resetBtn").addEventListener("click",async()=>{
  const email=$("email").value.trim();
+
  if(!email)return alert("Saisis d'abord ton e-mail.");
- try{await sendPasswordResetEmail(auth,email);alert("Si le compte existe, un e-mail de réinitialisation sera envoyé.")}catch(e){alert(e.message)}
+
+ try{
+  await sendPasswordResetEmail(auth,email);
+  alert("Si le compte existe, un e-mail de réinitialisation sera envoyé.");
+ }catch(e){
+  alert(e.message);
+ }
 });
 
 async function logout(){
  if(unsubscribeDepot)unsubscribeDepot();
  if(unsubscribeRequests)unsubscribeRequests();
- unsubscribeDepot=null;unsubscribeRequests=null;ready=false;
+
+ unsubscribeDepot=null;
+ unsubscribeRequests=null;
+ ready=false;
+
  await signOut(auth);
 }
-$("logoutBtn").addEventListener("click",()=>{if(confirm("Se déconnecter ?"))logout()});
+
+$("logoutBtn").addEventListener("click",()=>{
+ if(confirm("Se déconnecter ?"))logout();
+});
+
 $("pendingLogout").addEventListener("click",logout);
 
 onAuthStateChanged(auth,async user=>{
- currentUser=user;ready=false;
+ currentUser=user;
+ ready=false;
+
  if(unsubscribeDepot)unsubscribeDepot();
  if(unsubscribeRequests)unsubscribeRequests();
- unsubscribeDepot=null;unsubscribeRequests=null;
- if(!user){setSections(true,false,false);status("Connecte-toi ou crée un compte.");return}
+
+ unsubscribeDepot=null;
+ unsubscribeRequests=null;
+
+ if(!user){
+  setSections(true,false,false);
+  status("Connecte-toi ou crée un compte.");
+  return;
+ }
+
  $("userLabel").textContent="Connecté : "+(user.email||"");
  $("usersMenuBtn").hidden=!isAdmin();
+
  if(isAdmin()){
   setSections(false,false,true);
   await loadCloud();
   return;
  }
+
  try{
   const authRef=doc(db,"authorizedUsers",user.uid);
   const approved=await getDoc(authRef);
+
   if(approved.exists()&&approved.data().approved===true){
    setSections(false,false,true);
    await loadCloud();
@@ -406,73 +637,270 @@ onAuthStateChanged(auth,async user=>{
 });
 
 $("productForm").addEventListener("submit",async e=>{
- e.preventDefault();if(!ready)return alert("Attends le chargement des données.");
- data.products.push({id:Date.now(),name:$("pname").value.trim(),brand:$("brand").value.trim(),units:Number($("units").value),qty:Number($("qty").value),cost:Number($("cost").value),price:Number($("price").value),threshold:Number($("threshold").value)});
- if(await save()){e.target.reset();$("units").value=12;$("threshold").value=12;render();alert("Boisson enregistrée.")}
+ e.preventDefault();
+
+ if(!ready)return alert("Attends le chargement des données.");
+
+ const units=Number($("units").value);
+ const qty=Number($("qty").value);
+ const cost=Number($("cost").value);
+ const price=Number($("price").value);
+ const threshold=Number($("threshold").value);
+
+ if(!Number.isInteger(units)||units<=0||
+    !Number.isInteger(qty)||qty<0||
+    !Number.isFinite(cost)||cost<0||
+    !Number.isFinite(price)||price<0||
+    !Number.isInteger(threshold)||threshold<0){
+  return alert("Vérifie les quantités et les prix saisis.");
+ }
+
+ data.products.push({
+  id:Date.now(),
+  name:$("pname").value.trim(),
+  brand:$("brand").value.trim(),
+  units,qty,cost,price,threshold
+ });
+
+ if(await save()){
+  e.target.reset();
+  $("units").value=12;
+  $("threshold").value=12;
+  $("qty").value=0;
+  $("cost").value=0;
+  $("price").value=0;
+  render();
+  alert("Boisson enregistrée.");
+ }
 });
 
 $("productRows").addEventListener("click",async e=>{
- const add=e.target.dataset.add,remove=e.target.dataset.remove;
+ const add=e.target.dataset.add;
+ const remove=e.target.dataset.remove;
+
  if(add){
-  const p=data.products.find(x=>String(x.id)===add);if(!p)return;
-  const n=prompt("Combien de bouteilles ajouter ?","12");if(n===null)return;
-  if(!Number.isInteger(Number(n))||Number(n)<=0)return alert("Saisis un nombre entier positif.");
-  p.qty=Number(p.qty)+Number(n);await save();render();
+  const p=data.products.find(x=>String(x.id)===add);
+  if(!p)return;
+
+  const n=prompt("Combien de bouteilles ajouter ?","12");
+  if(n===null)return;
+
+  if(!Number.isInteger(Number(n))||Number(n)<=0){
+   return alert("Saisis un nombre entier positif.");
+  }
+
+  const oldQty=Number(p.qty)||0;
+  p.qty=oldQty+Number(n);
+
+  if(await save())render();
+  else p.qty=oldQty;
  }
+
  if(remove){
   if(!confirm("Supprimer cette boisson ?"))return;
+
+  const previous=data.products;
   data.products=data.products.filter(x=>String(x.id)!==remove);
-  if(await save())render();
+
+  if(await save()){
+   if(lastSaleProductId===remove)lastSaleProductId="";
+   render();
+  }else{
+   data.products=previous;
+   render();
+  }
  }
 });
 
-$("saleProduct").addEventListener("change",updateSaleInfo);
+$("saleProduct").addEventListener("change",()=>{
+ const p=data.products.find(x=>String(x.id)===$("saleProduct").value);
+
+ if(p){
+  $("bottlePrice").value=Number(p.price)||0;
+  lastSaleProductId=String(p.id);
+ }else{
+  $("bottlePrice").value=0;
+  lastSaleProductId="";
+ }
+
+ updateSaleInfo();
+});
+
 $("crates").addEventListener("input",updateSaleInfo);
 $("bottles").addEventListener("input",updateSaleInfo);
 $("cratePrice").addEventListener("input",updateSaleInfo);
+$("bottlePrice").addEventListener("input",updateSaleInfo);
 
 function updateSaleInfo(){
  const p=data.products.find(x=>String(x.id)===$("saleProduct").value);
- const c=Number($("crates").value)||0,b=Number($("bottles").value)||0,cp=Number($("cratePrice").value)||0;
- if(!p){$("saleInfo").textContent="Ajoute d'abord une boisson.";return}
- $("saleInfo").textContent="Stock : "+p.qty+" bouteilles. Quantité : "+(c*Number(p.units)+b)+" bouteilles. Total estimé : "+money(c*cp+b*Number(p.price));
+
+ const c=Number($("crates").value)||0;
+ const b=Number($("bottles").value)||0;
+ const cp=Number($("cratePrice").value)||0;
+ const bp=Number($("bottlePrice").value)||0;
+
+ if(!p){
+  $("saleInfo").textContent="Choisis une boisson.";
+  $("confirmSaleBtn").disabled=true;
+  return;
+ }
+
+ $("confirmSaleBtn").disabled=!ready;
+
+ const units=Number(p.units)||0;
+ const qty=c*units+b;
+ const total=c*cp+b*bp;
+ const remaining=Number(p.qty)-qty;
+ const estimatedProfit=total-qty*Number(p.cost||0);
+
+ $("saleInfo").innerHTML=
+  "Bouteilles par casier : "+units+
+  "<br>Quantité vendue : "+qty+" bouteille(s)"+
+  "<br>Stock actuel : "+Number(p.qty)+" bouteille(s)"+
+  '<br>Stock après vente : <strong class="'+(remaining<0?"danger":"")+'">'+remaining+" bouteille(s)</strong>"+
+  "<br>Prix du casier : "+money(cp)+
+  "<br>Prix de la bouteille : "+money(bp)+
+  "<br><strong>Montant total : "+money(total)+"</strong>"+
+  "<br>Bénéfice estimé : "+money(estimatedProfit)+
+  (remaining<0?'<br><span class="danger">Stock insuffisant !</span>':"");
 }
 
 $("saleForm").addEventListener("submit",async e=>{
- e.preventDefault();if(!ready)return alert("Attends le chargement des données.");
- const p=data.products.find(x=>String(x.id)===$("saleProduct").value);if(!p)return alert("Ajoute une boisson.");
- const c=Number($("crates").value),b=Number($("bottles").value),cp=Number($("cratePrice").value);
- const qty=c*Number(p.units)+b;
- if(!Number.isInteger(c)||!Number.isInteger(b)||c<0||b<0)return alert("Saisis des nombres entiers positifs ou nuls.");
- if(qty<=0)return alert("Saisis une quantité à vendre.");
- if(qty>Number(p.qty))return alert("Stock insuffisant : "+p.qty+" bouteille(s).");
- const total=c*cp+b*Number(p.price),profit=total-qty*Number(p.cost);
- if(!confirm("Confirmer "+qty+" bouteille(s) de "+p.name+" pour "+money(total)+" ?"))return;
- const old=p.qty;p.qty=Number(p.qty)-qty;
- data.sales.push({date:new Date().toISOString(),productId:p.id,name:p.name,qty,total,profit});
- if(await save()){e.target.reset();$("crates").value=0;$("bottles").value=0;$("cratePrice").value=0;render();show("dashboard");alert("Vente enregistrée.")}
- else{p.qty=old;data.sales.pop();render()}
+ e.preventDefault();
+
+ if(!ready)return alert("Attends le chargement des données.");
+
+ const p=data.products.find(x=>String(x.id)===$("saleProduct").value);
+ if(!p)return alert("Choisis une boisson.");
+
+ const c=Number($("crates").value);
+ const b=Number($("bottles").value);
+ const cp=Number($("cratePrice").value);
+ const bp=Number($("bottlePrice").value);
+ const units=Number(p.units);
+
+ if(!Number.isInteger(c)||!Number.isInteger(b)||c<0||b<0){
+  return alert("Saisis des nombres entiers positifs ou nuls pour les quantités.");
+ }
+
+ if(!Number.isFinite(cp)||cp<0||!Number.isFinite(bp)||bp<0){
+  return alert("Les prix de vente doivent être des nombres positifs ou nuls.");
+ }
+
+ const qty=c*units+b;
+
+ if(!Number.isSafeInteger(qty)||qty<=0){
+  return alert("Saisis une quantité à vendre.");
+ }
+
+ if(qty>Number(p.qty)){
+  return alert("Stock insuffisant : "+p.qty+" bouteille(s) disponible(s).");
+ }
+
+ const total=c*cp+b*bp;
+ const profit=total-qty*Number(p.cost||0);
+
+ if(!Number.isFinite(total)||!Number.isFinite(profit)){
+  return alert("Impossible de calculer cette vente. Vérifie les valeurs.");
+ }
+
+ const confirmation=
+  "Confirmer la vente ?\n\n"+
+  "Boisson : "+p.name+"\n"+
+  "Casiers : "+c+"\n"+
+  "Bouteilles supplémentaires : "+b+"\n"+
+  "Quantité totale : "+qty+" bouteille(s)\n"+
+  "Prix par casier : "+money(cp)+"\n"+
+  "Prix par bouteille : "+money(bp)+"\n"+
+  "Montant total : "+money(total)+"\n"+
+  "Bénéfice estimé : "+money(profit);
+
+ if(!confirm(confirmation))return;
+
+ const oldQty=Number(p.qty);
+ const oldSalesLength=data.sales.length;
+
+ p.qty=oldQty-qty;
+
+ data.sales.push({
+  date:new Date().toISOString(),
+  productId:p.id,
+  name:p.name,
+  crates:c,
+  bottles:b,
+  cratePrice:cp,
+  bottlePrice:bp,
+  qty,
+  total,
+  profit
+ });
+
+ if(await save()){
+  $("crates").value=0;
+  $("bottles").value=0;
+  $("cratePrice").value=0;
+  $("bottlePrice").value=Number(p.price)||0;
+
+  render();
+  show("dashboard");
+  alert("Vente enregistrée et stock mis à jour.");
+ }else{
+  p.qty=oldQty;
+  data.sales.splice(oldSalesLength);
+  render();
+ }
 });
 
 $("exportBtn").addEventListener("click",()=>{
  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
- const url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download="sarah-stock-sauvegarde.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+
+ a.href=url;
+ a.download="sarah-stock-sauvegarde.json";
+ a.click();
+
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 
 $("importFile").addEventListener("change",async e=>{
- const f=e.target.files[0];if(!f)return;
+ const f=e.target.files[0];
+ if(!f)return;
+
  try{
   const d=JSON.parse(await f.text());
-  if(!Array.isArray(d.products)||!Array.isArray(d.sales))throw new Error("Format invalide");
+
+  if(!Array.isArray(d.products)||!Array.isArray(d.sales)){
+   throw new Error("Format invalide");
+  }
+
   if(!confirm("Remplacer les données partagées du dépôt ?"))return;
-  const previous=data;data=d;
-  if(await save()){render();alert("Sauvegarde importée.")}else{data=previous;render()}
- }catch(err){alert("Fichier invalide : "+err.message)}finally{e.target.value=""}
+
+  const previous=data;
+  data=d;
+
+  if(await save()){
+   lastSaleProductId="";
+   render();
+   alert("Sauvegarde importée.");
+  }else{
+   data=previous;
+   render();
+  }
+ }catch(err){
+  alert("Fichier invalide : "+err.message);
+ }finally{
+  e.target.value="";
+ }
 });
 
 render();
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(console.error));
+
+if("serviceWorker" in navigator){
+ window.addEventListener("load",()=>{
+  navigator.serviceWorker.register("./service-worker.js").catch(console.error);
+ });
+}
 </script>
 </body>
 </html>
