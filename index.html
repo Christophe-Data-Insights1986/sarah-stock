@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#14532d">
 <title>Sarah Stock - Gestion du dépôt</title>
-
 <link rel="manifest" href="manifest.json">
 
 <style>
@@ -14,9 +13,10 @@ body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172033}
 header{background:#14532d;color:white;padding:20px;text-align:center}
 header h1{margin:0 0 6px}
 nav{display:flex;gap:8px;padding:10px;overflow:auto;background:white}
-nav button{white-space:nowrap}
 button{border:0;border-radius:8px;padding:11px 14px;background:#166534;color:white;font-weight:bold;cursor:pointer}
 button.secondary{background:#64748b}
+button.danger-button{background:#b91c1c}
+button:disabled{opacity:.5;cursor:not-allowed}
 main{max-width:850px;margin:auto;padding:14px}
 .card{background:white;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #0000000d}
 h2{font-size:19px;margin-top:0}
@@ -32,10 +32,14 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 .small{font-size:13px;color:#64748b}
 .danger{color:#b91c1c;font-weight:bold}
 .actions{display:flex;gap:6px;flex-wrap:wrap}
-@media(max-width:420px){ .grid{ grid-template-columns:1fr 1fr; } .stat strong{ font-size:17px; } }
-.main-menu{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px; background:white; border-radius:12px; margin:12px; }
-.main-menu button{ min-height:90px; font-size:16px; border-radius:14px; padding:12px; }
-@media(max-width:360px){ .main-menu{ grid-template-columns:1fr; } }
+.actions button{margin-top:8px}
+.main-menu{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px;background:white;border-radius:12px;margin:12px}
+.main-menu button{min-height:75px;font-size:15px;border-radius:14px;padding:12px}
+#status{padding:10px 14px;background:#e2e8f0;font-size:13px;overflow-wrap:anywhere}
+#loginSection{max-width:500px;margin:20px auto;padding:14px}
+.notice{background:#fff7ed;padding:12px;border-radius:8px;font-size:13px}
+@media(max-width:420px){.grid{grid-template-columns:1fr 1fr}.stat strong{font-size:17px}}
+@media(max-width:360px){.main-menu{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -45,11 +49,44 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <div>Gestion du dépôt de boissons</div>
 </header>
 
-<div id="mainMenu" class="main-menu">
-  <button onclick="show('dashboard')">🏠 Accueil</button>
-  <button onclick="show('products')">🥤 Boissons et stock</button>
-  <button onclick="show('sale')">💰 Nouvelle vente</button>
-  <button onclick="show('history')">🧾 Historique des ventes</button>
+<div id="status">Connexion à Firebase en cours…</div>
+
+<section id="loginSection" hidden>
+<div class="card">
+<h2>🔐 Connexion à Sarah Stock</h2>
+<p class="small">Connecte-toi pour accéder aux données du dépôt.</p>
+
+<form id="loginForm">
+<label>Adresse e-mail</label>
+<input id="email" type="email" autocomplete="username" required>
+
+<label>Mot de passe</label>
+<input id="password" type="password" autocomplete="current-password" required>
+
+<button type="submit">Se connecter</button>
+</form>
+
+<div class="actions">
+<button id="googleBtn" type="button">Continuer avec Google</button>
+<button id="resetBtn" type="button" class="secondary">Mot de passe oublié</button>
+</div>
+
+<p class="small">Le compte doit être autorisé par l'administrateur du dépôt.</p>
+</div>
+</section>
+
+<div id="appArea" hidden>
+<div style="padding:10px 14px;background:white">
+<span id="userLabel" class="small"></span>
+<button id="logoutBtn" type="button" class="secondary" style="float:right">Déconnexion</button>
+<div style="clear:both"></div>
+</div>
+
+<div class="main-menu">
+<button type="button" onclick="show('dashboard')">🏠 Accueil</button>
+<button type="button" onclick="show('products')">🥤 Boissons et stock</button>
+<button type="button" onclick="show('sale')">💰 Nouvelle vente</button>
+<button type="button" onclick="show('history')">🧾 Historique des ventes</button>
 </div>
 
 <main>
@@ -62,7 +99,7 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <div class="stat">Ventes du jour<strong id="today">0 FCFA</strong></div>
 <div class="stat">Bénéfice estimé du jour<strong id="profit">0 FCFA</strong></div>
 </div>
-<p class="small">Les données sont conservées sur ce téléphone et dans ce navigateur. Exportez régulièrement une sauvegarde.</p>
+<p class="small">Les données sont enregistrées dans Cloud Firestore lorsque la synchronisation fonctionne.</p>
 </div>
 
 <div class="card">
@@ -74,7 +111,6 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <section id="products" hidden>
 <div class="card">
 <h2>➕ Ajouter une boisson</h2>
-
 <form id="productForm">
 <label>Nom de la boisson</label>
 <input id="pname" required placeholder="Ex. : Top Pamplemousse">
@@ -83,19 +119,19 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <input id="brand" placeholder="Ex. : 1 litre">
 
 <label>Nombre de bouteilles par casier</label>
-<input id="units" type="number" min="1" value="12" required>
+<input id="units" type="number" min="1" step="1" value="12" required>
 
 <label>Stock actuel (en bouteilles)</label>
-<input id="qty" type="number" min="0" value="0" required>
+<input id="qty" type="number" min="0" step="1" value="0" required>
 
 <label>Prix d'achat par bouteille (FCFA)</label>
-<input id="cost" type="number" min="0" value="0" required>
+<input id="cost" type="number" min="0" step="1" value="0" required>
 
 <label>Prix de vente par bouteille (FCFA)</label>
-<input id="price" type="number" min="0" value="0" required>
+<input id="price" type="number" min="0" step="1" value="0" required>
 
 <label>Seuil d'alerte (bouteilles)</label>
-<input id="threshold" type="number" min="0" value="12" required>
+<input id="threshold" type="number" min="0" step="1" value="12" required>
 
 <button type="submit">Enregistrer la boisson</button>
 </form>
@@ -105,14 +141,7 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <h2>📦 Liste des boissons</h2>
 <div class="table-wrap">
 <table>
-<thead>
-<tr>
-<th>Boisson</th>
-<th>Stock</th>
-<th>Prix bouteille</th>
-<th>Action</th>
-</tr>
-</thead>
+<thead><tr><th>Boisson</th><th>Stock</th><th>Prix bouteille</th><th>Action</th></tr></thead>
 <tbody id="productRows"></tbody>
 </table>
 </div>
@@ -122,21 +151,20 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <section id="sale" hidden>
 <div class="card">
 <h2>🛒 Enregistrer une vente</h2>
-
 <form id="saleForm">
 <label>Boisson</label>
 <select id="saleProduct" required></select>
 
 <label>Nombre de casiers</label>
-<input id="crates" type="number" min="0" value="0" required>
+<input id="crates" type="number" min="0" step="1" value="0" required>
 
 <label>Nombre de bouteilles supplémentaires</label>
-<input id="bottles" type="number" min="0" value="0" required>
+<input id="bottles" type="number" min="0" step="1" value="0" required>
 
 <label>Prix de vente par casier (FCFA)</label>
-<input id="cratePrice" type="number" min="0" value="0" required>
+<input id="cratePrice" type="number" min="0" step="1" value="0" required>
 
-<div id="saleInfo" class="small">Choisissez une boisson.</div>
+<div id="saleInfo" class="small">Choisis une boisson.</div>
 <button type="submit">Confirmer la vente</button>
 </form>
 </div>
@@ -145,296 +173,451 @@ th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #e2e8f0}
 <section id="history" hidden>
 <div class="card">
 <h2>🧾 Historique des ventes</h2>
-
 <div class="table-wrap">
 <table>
-<thead>
-<tr>
-<th>Date</th>
-<th>Boisson</th>
-<th>Quantité</th>
-<th>Total</th>
-</tr>
-</thead>
+<thead><tr><th>Date</th><th>Boisson</th><th>Quantité</th><th>Total</th></tr></thead>
 <tbody id="salesRows"></tbody>
 </table>
 </div>
 
 <div class="actions">
-<button onclick="exportData()">Exporter la sauvegarde</button>
-<button class="secondary" onclick="document.getElementById('importFile').click()">Importer une sauvegarde</button>
+<button type="button" id="exportBtn">Exporter la sauvegarde</button>
+<button type="button" class="secondary" onclick="document.getElementById('importFile').click()">Importer une sauvegarde</button>
 <input id="importFile" type="file" accept=".json,application/json" hidden>
 </div>
-
-<p class="small">Conservez le fichier exporté en lieu sûr. L'importation remplace les données présentes sur ce téléphone.</p>
+<p class="small">L'importation remplace les données du dépôt dans le cloud. Fais-le uniquement si tu souhaites vraiment remplacer les données partagées.</p>
 </div>
 </section>
 </main>
+</div>
 
-<script>
-const KEY='sarahStockDataV1';
-let data={products:[],sales:[]};
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
+  signOut
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-try{
-  const saved=localStorage.getItem(KEY);
-  if(saved)data=JSON.parse(saved);
-  if(!Array.isArray(data.products)||!Array.isArray(data.sales))throw Error();
-}catch(e){
-  data={products:[],sales:[]};
+const firebaseConfig = {
+  apiKey: "AIzaSyAyZtYrG_8_0ENiAEvTYWzsu6TQWw79E9k",
+  authDomain: "sarah-stock.firebaseapp.com",
+  projectId: "sarah-stock",
+  storageBucket: "sarah-stock.firebasestorage.app",
+  messagingSenderId: "843791178724",
+  appId: "1:843791178724:web:db99c5af27c5766e5a85f1",
+  measurementId: "G-EZ76LH825D"
+};
+
+const ADMIN_EMAIL = "christopheatangana2@gmail.com";
+const KEY = "sarahStockDataV1";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+const depotRef = doc(db, "shared", "depotData");
+
+let data = {products: [], sales: []};
+let currentUser = null;
+let unsubscribeDepot = null;
+let saving = false;
+let ready = false;
+
+const $ = id => document.getElementById(id);
+
+function status(message) {
+  $("status").textContent = message;
 }
 
-function save(){
-  localStorage.setItem(KEY,JSON.stringify(data));
-  render();
+function money(n) {
+  return Math.round(Number(n) || 0).toLocaleString("fr-FR") + " FCFA";
 }
 
-function money(n){
-  return Math.round(n).toLocaleString('fr-FR')+' FCFA';
-}
-
-function show(id){
-  document.querySelectorAll('main section').forEach(s=>{
-    s.hidden=s.id!==id;
-  });
-  render();
-}
-
-function render(){
-  document.getElementById('count').textContent=data.products.length;
-
-  document.getElementById('stock').textContent=
-    data.products.reduce((s,p)=>s+Number(p.qty),0);
-
-  const day=new Date().toLocaleDateString('sv-SE');
-  const todays=data.sales.filter(s=>s.date.slice(0,10)===day);
-
-  document.getElementById('today').textContent=
-    money(todays.reduce((s,x)=>s+Number(x.total||0),0));
-
-  document.getElementById('profit').textContent=
-    money(todays.reduce((s,x)=>s+Number(x.profit||0),0));
-
-  const low=data.products.filter(p=>Number(p.qty)<=Number(p.threshold));
-
-  document.getElementById('alerts').innerHTML=low.length
-    ?low.map(p=>'<p class="danger">'+esc(p.name)+': '+p.qty+' bouteille(s)</p>').join('')
-    :'Aucune alerte de stock.';
-
-  document.getElementById('productRows').innerHTML=data.products.map(p=>
-    '<tr><td>'+esc(p.name)+'<br><span class="small">'+esc(p.brand||'')+
-    '</span></td><td>'+p.qty+'</td><td>'+money(p.price)+
-    '</td><td><button class="secondary" onclick="addStock('+p.id+
-    ')">+ Stock</button> <button onclick="removeProduct('+p.id+
-    ')">Supprimer</button></td></tr>'
-  ).join('');
-
-  const sel=document.getElementById('saleProduct');
-  const old=sel.value;
-
-  sel.innerHTML=data.products.map(p=>
-    '<option value="'+p.id+'">'+esc(p.name)+'</option>'
-  ).join('');
-
-  if(data.products.some(p=>String(p.id)===old))sel.value=old;
-
-  updateSaleInfo();
-
-  document.getElementById('salesRows').innerHTML=
-    [...data.sales].reverse().map(s=>
-      '<tr><td>'+new Date(s.date).toLocaleString('fr-FR')+
-      '</td><td>'+esc(s.name)+'</td><td>'+s.qty+
-      '</td><td>'+money(s.total)+'</td></tr>'
-    ).join('');
-}
-
-function esc(s){
-  return String(s).replace(/[&<>"']/g,c=>({
-    '&':'&amp;',
-    '<':'&lt;',
-    '>':'&gt;',
-    '"':'&quot;',
-    "'":'&#39;'
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[c]));
 }
 
-document.getElementById('productForm').addEventListener('submit',e=>{
+function setAppVisible(signedIn) {
+  $("loginSection").hidden = signedIn;
+  $("appArea").hidden = !signedIn;
+}
+
+function show(id) {
+  document.querySelectorAll("main section").forEach(s => {
+    s.hidden = s.id !== id;
+  });
+  render();
+}
+window.show = show;
+
+function render() {
+  $("count").textContent = data.products.length;
+  $("stock").textContent = data.products.reduce((sum,p) => sum + Number(p.qty || 0), 0);
+
+  const day = new Date().toLocaleDateString("sv-SE");
+  const todays = data.sales.filter(s => String(s.date || "").slice(0,10) === day);
+
+  $("today").textContent = money(todays.reduce((sum,s) => sum + Number(s.total || 0), 0));
+  $("profit").textContent = money(todays.reduce((sum,s) => sum + Number(s.profit || 0), 0));
+
+  const low = data.products.filter(p => Number(p.qty) <= Number(p.threshold));
+  $("alerts").innerHTML = low.length
+    ? low.map(p => '<p class="danger">'+esc(p.name)+': '+Number(p.qty)+' bouteille(s)</p>').join("")
+    : "Aucune alerte de stock.";
+
+  $("productRows").innerHTML = data.products.map(p =>
+    '<tr><td>'+esc(p.name)+'<br><span class="small">'+esc(p.brand || "")+
+    '</span></td><td>'+Number(p.qty || 0)+'</td><td>'+money(p.price)+
+    '</td><td><div class="actions"><button type="button" class="secondary" data-add="'+esc(p.id)+'">+ Stock</button>'+
+    '<button type="button" class="danger-button" data-remove="'+esc(p.id)+'">Supprimer</button></div></td></tr>'
+  ).join("");
+
+  const sel = $("saleProduct");
+  const old = sel.value;
+  sel.innerHTML = data.products.map(p =>
+    '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>'
+  ).join("");
+  if (data.products.some(p => String(p.id) === old)) sel.value = old;
+
+  $("salesRows").innerHTML = [...data.sales].reverse().map(s =>
+    '<tr><td>'+esc(s.date ? new Date(s.date).toLocaleString("fr-FR") : "")+
+    '</td><td>'+esc(s.name)+'</td><td>'+Number(s.qty || 0)+
+    '</td><td>'+money(s.total)+'</td></tr>'
+  ).join("");
+
+  updateSaleInfo();
+}
+
+async function save() {
+  if (!currentUser || !ready || saving) {
+    status("Attends la fin du chargement avant d'enregistrer.");
+    return false;
+  }
+
+  saving = true;
+  try {
+    await setDoc(depotRef, {
+      products: data.products,
+      sales: data.sales,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser.email || currentUser.uid
+    });
+    localStorage.setItem(KEY, JSON.stringify(data));
+    status("☁️ Données enregistrées et synchronisées.");
+    return true;
+  } catch (error) {
+    console.error(error);
+    status("Erreur d'enregistrement : " + error.message);
+    alert("Impossible d'enregistrer dans Firebase. Vérifie les règles Firestore et ta connexion Internet.");
+    return false;
+  } finally {
+    saving = false;
+  }
+}
+
+async function loadCloud() {
+  ready = false;
+  status("Chargement des données du dépôt…");
+
+  try {
+    const snapshot = await getDoc(depotRef);
+
+    if (snapshot.exists()) {
+      const cloud = snapshot.data();
+      data = {
+        products: Array.isArray(cloud.products) ? cloud.products : [],
+        sales: Array.isArray(cloud.sales) ? cloud.sales : []
+      };
+    } else {
+      const saved = localStorage.getItem(KEY);
+      if (saved && confirm("Aucune donnée cloud n'existe encore. Importer les données enregistrées sur CE téléphone dans le dépôt partagé ?")) {
+        const local = JSON.parse(saved);
+        if (Array.isArray(local.products) && Array.isArray(local.sales)) {
+          data = local;
+        }
+      }
+      await setDoc(depotRef, {
+        products: data.products,
+        sales: data.sales,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser.email || currentUser.uid
+      });
+    }
+
+    ready = true;
+    render();
+    status("☁️ Connecté au dépôt partagé.");
+    if (unsubscribeDepot) unsubscribeDepot();
+    unsubscribeDepot = onSnapshot(depotRef, snapshot => {
+      if (!snapshot.exists() || saving) return;
+      const cloud = snapshot.data();
+      if (Array.isArray(cloud.products) && Array.isArray(cloud.sales)) {
+        data = {products: cloud.products, sales: cloud.sales};
+        localStorage.setItem(KEY, JSON.stringify(data));
+        render();
+        status("☁️ Synchronisation active.");
+      }
+    }, error => {
+      console.error(error);
+      status("Erreur de synchronisation : " + error.message);
+    });
+  } catch (error) {
+    console.error(error);
+    ready = false;
+    status("Impossible de charger Firestore : " + error.message);
+    alert("La connexion a réussi, mais Firestore a refusé l'accès. Vérifie les règles de sécurité publiées.");
+  }
+}
+
+$("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
+  try {
+    status("Connexion en cours…");
+    await signInWithEmailAndPassword(auth, $("email").value.trim(), $("password").value);
+  } catch (error) {
+    console.error(error);
+    status("Échec de connexion : " + error.message);
+    alert("Connexion impossible. Vérifie l'e-mail, le mot de passe et que le compte existe dans Firebase Authentication.");
+  }
+});
+
+$("googleBtn").addEventListener("click", async () => {
+  try {
+    status("Ouverture de la connexion Google…");
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    console.error(error);
+    status("Connexion Google impossible : " + error.message);
+    alert("La connexion Google a échoué. Vérifie que Google est activé dans Firebase Authentication et que ton domaine GitHub Pages est autorisé.");
+  }
+});
+
+$("resetBtn").addEventListener("click", async () => {
+  const email = $("email").value.trim();
+  if (!email) {
+    alert("Saisis d'abord ton adresse e-mail.");
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    alert("Si cette adresse correspond à un compte, un e-mail de réinitialisation sera envoyé.");
+  } catch (error) {
+    alert("Impossible d'envoyer l'e-mail : " + error.message);
+  }
+});
+
+$("logoutBtn").addEventListener("click", async () => {
+  if (!confirm("Veux-tu vraiment te déconnecter ?")) return;
+  if (unsubscribeDepot) unsubscribeDepot();
+  unsubscribeDepot = null;
+  ready = false;
+  await signOut(auth);
+});
+
+onAuthStateChanged(auth, async user => {
+  currentUser = user;
+  ready = false;
+
+  if (!user) {
+    if (unsubscribeDepot) unsubscribeDepot();
+    unsubscribeDepot = null;
+    setAppVisible(false);
+    status("Connecte-toi pour accéder au dépôt.");
+    return;
+  }
+
+  if ((user.email || "").toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+    await signOut(auth);
+    setAppVisible(false);
+    status("Compte non autorisé. Contacte l'administrateur du dépôt.");
+    alert("Ce compte n'est pas encore autorisé à utiliser Sarah Stock.");
+    return;
+  }
+
+  setAppVisible(true);
+  $("userLabel").textContent = "Connecté : " + (user.email || "");
+  await loadCloud();
+});
+
+$("productForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!ready) return alert("Attends que les données du dépôt soient chargées.");
 
   data.products.push({
-    id:Date.now(),
-    name:document.getElementById('pname').value.trim(),
-    brand:document.getElementById('brand').value.trim(),
-    units:+document.getElementById('units').value,
-    qty:+document.getElementById('qty').value,
-    cost:+document.getElementById('cost').value,
-    price:+document.getElementById('price').value,
-    threshold:+document.getElementById('threshold').value
+    id: Date.now(),
+    name: $("pname").value.trim(),
+    brand: $("brand").value.trim(),
+    units: Number($("units").value),
+    qty: Number($("qty").value),
+    cost: Number($("cost").value),
+    price: Number($("price").value),
+    threshold: Number($("threshold").value)
   });
 
-  save();
-  e.target.reset();
-  document.getElementById('units').value=12;
-  document.getElementById('threshold').value=12;
-  alert('Boisson enregistrée !');
-  show('products');
+  if (await save()) {
+    e.target.reset();
+    $("units").value = 12;
+    $("threshold").value = 12;
+    render();
+    alert("Boisson enregistrée !");
+  }
 });
 
-function addStock(id){
-  const p=data.products.find(x=>x.id===id);
-  if(!p)return;
+$("productRows").addEventListener("click", async e => {
+  const addId = e.target.dataset.add;
+  const removeId = e.target.dataset.remove;
 
-  const n=prompt('Combien de bouteilles ajouter au stock de '+p.name+' ?','12');
-  if(n===null)return;
-
-  if(!Number.isInteger(Number(n))||Number(n)<=0){
-    alert('Saisissez un nombre entier positif.');
-    return;
-  }
-
-  p.qty=Number(p.qty)+Number(n);
-  save();
-}
-
-function removeProduct(id){
-  if(!confirm('Supprimer cette boisson ?'))return;
-
-  data.products=data.products.filter(p=>p.id!==id);
-  save();
-}
-
-document.getElementById('saleProduct').addEventListener('change',updateSaleInfo);
-document.getElementById('crates').addEventListener('input',updateSaleInfo);
-document.getElementById('bottles').addEventListener('input',updateSaleInfo);
-document.getElementById('cratePrice').addEventListener('input',updateSaleInfo);
-
-function updateSaleInfo(){
-  const p=data.products.find(x=>
-    x.id===Number(document.getElementById('saleProduct').value)
-  );
-
-  const c=Number(document.getElementById('crates').value)||0;
-  const b=Number(document.getElementById('bottles').value)||0;
-  const cp=Number(document.getElementById('cratePrice').value)||0;
-
-  if(!p){
-    document.getElementById('saleInfo').textContent=
-      'Ajoutez d’abord une boisson dans la rubrique Boissons et stock.';
-    return;
-  }
-
-  document.getElementById('saleInfo').textContent=
-    'Stock : '+p.qty+' bouteilles. Quantité : '+
-    (c*p.units+b)+' bouteilles. Total estimé : '+
-    money(c*cp+b*p.price);
-}
-
-document.getElementById('saleForm').addEventListener('submit',e=>{
-  e.preventDefault();
-
-  const p=data.products.find(x=>
-    x.id===Number(document.getElementById('saleProduct').value)
-  );
-
-  if(!p){
-    alert('Ajoutez d’abord une boisson.');
-    return;
-  }
-
-  const c=Number(document.getElementById('crates').value);
-  const b=Number(document.getElementById('bottles').value);
-  const cp=Number(document.getElementById('cratePrice').value);
-
-  const qty=c*p.units+b;
-
-  if(qty<=0){
-    alert('Saisissez une quantité à vendre.');
-    return;
-  }
-
-  if(qty>p.qty){
-    alert('Stock insuffisant : il reste '+p.qty+' bouteilles.');
-    return;
-  }
-
-  const total=c*cp+b*p.price;
-  const profit=total-qty*p.cost;
-
-  if(!confirm('Confirmer '+qty+' bouteille(s) de '+p.name+
-    ' pour '+money(total)+' ?'))return;
-
-  p.qty-=qty;
-
-  data.sales.push({
-    date:new Date().toISOString(),
-    productId:p.id,
-    name:p.name,
-    qty:qty,
-    total:total,
-    profit:profit
-  });
-
-  save();
-  e.target.reset();
-
-  document.getElementById('crates').value=0;
-  document.getElementById('bottles').value=0;
-
-  alert('Vente enregistrée !');
-  show('dashboard');
-});
-
-function exportData(){
-  const blob=new Blob(
-    [JSON.stringify(data,null,2)],
-    {type:'application/json'}
-  );
-
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-
-  a.href=url;
-  a.download='sarah-stock-sauvegarde.json';
-  a.click();
-
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
-
-document.getElementById('importFile').addEventListener('change',async e=>{
-  const f=e.target.files[0];
-  if(!f)return;
-
-  try{
-    const d=JSON.parse(await f.text());
-
-    if(!Array.isArray(d.products)||!Array.isArray(d.sales)){
-      throw Error();
-    }
-
-    if(!confirm('Remplacer les données actuelles par la sauvegarde ?')){
+  if (addId) {
+    const p = data.products.find(x => String(x.id) === addId);
+    if (!p) return;
+    const n = prompt("Combien de bouteilles ajouter au stock de "+p.name+" ?", "12");
+    if (n === null) return;
+    if (!Number.isInteger(Number(n)) || Number(n) <= 0) {
+      alert("Saisis un nombre entier positif.");
       return;
     }
+    p.qty = Number(p.qty) + Number(n);
+    await save();
+    render();
+  }
 
-    data=d;
-    save();
-    alert('Sauvegarde importée.');
-  }catch(err){
-    alert('Fichier de sauvegarde invalide.');
-  }finally{
-    e.target.value='';
+  if (removeId) {
+    if (!confirm("Supprimer cette boisson ? Les ventes historiques seront conservées.")) return;
+    data.products = data.products.filter(x => String(x.id) !== removeId);
+    if (await save()) render();
+  }
+});
+
+$("saleProduct").addEventListener("change", updateSaleInfo);
+$("crates").addEventListener("input", updateSaleInfo);
+$("bottles").addEventListener("input", updateSaleInfo);
+$("cratePrice").addEventListener("input", updateSaleInfo);
+
+function updateSaleInfo() {
+  const p = data.products.find(x => String(x.id) === $("saleProduct").value);
+  const c = Number($("crates").value) || 0;
+  const b = Number($("bottles").value) || 0;
+  const cp = Number($("cratePrice").value) || 0;
+
+  if (!p) {
+    $("saleInfo").textContent = "Ajoute d'abord une boisson dans Boissons et stock.";
+    return;
+  }
+
+  $("saleInfo").textContent = "Stock : "+p.qty+" bouteilles. Quantité : "+
+    (c * Number(p.units) + b)+" bouteilles. Total estimé : "+
+    money(c * cp + b * Number(p.price));
+}
+
+$("saleForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!ready) return alert("Attends que les données du dépôt soient chargées.");
+
+  const p = data.products.find(x => String(x.id) === $("saleProduct").value);
+  if (!p) return alert("Ajoute d'abord une boisson.");
+
+  const c = Number($("crates").value);
+  const b = Number($("bottles").value);
+  const cp = Number($("cratePrice").value);
+  const qty = c * Number(p.units) + b;
+
+  if (!Number.isInteger(c) || !Number.isInteger(b) || c < 0 || b < 0) {
+    return alert("Saisis des nombres entiers positifs ou nuls.");
+  }
+  if (qty <= 0) return alert("Saisis une quantité à vendre.");
+  if (qty > Number(p.qty)) return alert("Stock insuffisant : il reste "+p.qty+" bouteilles.");
+
+  const total = c * cp + b * Number(p.price);
+  const profit = total - qty * Number(p.cost);
+
+  if (!confirm("Confirmer "+qty+" bouteille(s) de "+p.name+" pour "+money(total)+" ?")) return;
+
+  const oldQty = p.qty;
+  p.qty = Number(p.qty) - qty;
+  data.sales.push({
+    date: new Date().toISOString(),
+    productId: p.id,
+    name: p.name,
+    qty,
+    total,
+    profit
+  });
+
+  if (await save()) {
+    e.target.reset();
+    $("crates").value = 0;
+    $("bottles").value = 0;
+    $("cratePrice").value = 0;
+    render();
+    alert("Vente enregistrée !");
+    show("dashboard");
+  } else {
+    p.qty = oldQty;
+    data.sales.pop();
+    render();
+  }
+});
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "sarah-stock-sauvegarde.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("exportBtn").addEventListener("click", exportData);
+
+$("importFile").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+
+  try {
+    const d = JSON.parse(await f.text());
+    if (!Array.isArray(d.products) || !Array.isArray(d.sales)) {
+      throw new Error("Format invalide");
+    }
+    if (!confirm("ATTENTION : remplacer les données partagées du dépôt par cette sauvegarde ?")) return;
+
+    const previous = data;
+    data = d;
+    if (await save()) {
+      render();
+      alert("Sauvegarde importée dans le cloud.");
+    } else {
+      data = previous;
+      render();
+    }
+  } catch (error) {
+    alert("Fichier de sauvegarde invalide.");
+  } finally {
+    e.target.value = "";
   }
 });
 
 render();
-</script>
 
-<script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./service-worker.js')
-      .catch(error=>console.error('Erreur service worker :',error));
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .catch(error => console.error("Service worker :", error));
   });
 }
 </script>
-
 </body>
 </html>
